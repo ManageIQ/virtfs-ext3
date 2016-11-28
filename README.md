@@ -1,5 +1,11 @@
 # VirtFS::Ext3
 
+[![Gem Version](https://badge.fury.io/rb/virtfs-ext3.svg)](http://badge.fury.io/rb/virtfs-ext3)
+[![Build Status](https://travis-ci.org/ManageIQ/virtfs-ext3.svg)](https://travis-ci.org/ManageIQ/virtfs-ext3)
+[![Code Climate](https://codeclimate.com/github/ManageIQ/virtfs-ext3.svg)](https://codeclimate.com/github/ManageIQ/virtfs-ext3)
+[![Test Coverage](https://codeclimate.com/github/ManageIQ/virtfs-ext3/badges/coverage.svg)](https://codeclimate.com/github/ManageIQ/virtfs-ext3/coverage)
+[![Dependency Status](https://gemnasium.com/ManageIQ/virtfs-ext3.svg)](https://gemnasium.com/ManageIQ/virtfs-ext3)
+
 An ext3 based filesystem module for VirtFS.
 
 ## Installation
