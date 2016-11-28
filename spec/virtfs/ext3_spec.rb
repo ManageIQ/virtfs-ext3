@@ -4,8 +4,4 @@ describe VirtFS::Ext3 do
   it 'has a version number' do
     expect(VirtFS::Ext3::VERSION).not_to be nil
   end
-
-  it 'does something useful' do
-    expect(false).to eq(true)
-  end
 end
