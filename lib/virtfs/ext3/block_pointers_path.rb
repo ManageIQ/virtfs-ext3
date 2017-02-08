@@ -1,4 +1,4 @@
-module Ext3
+module VirtFS::Ext3
   class BlockPointersPath
     DIRECT_SIZE           = 12
     SINGLE_INDIRECT_INDEX = 12
@@ -76,37 +76,37 @@ module Ext3
       end
     end
 
-    def block_to_path(block)
-      raise ArgumentError, "block must be greater than or equal to 0" if block < 0
+    def block_to_path(blk)
+      raise ArgumentError, "block must be greater than or equal to 0" if blk < 0
       @path = [nil, nil, nil, nil]
 
-      if block < DIRECT_SIZE
-        @path[0] = block
+      if blk < DIRECT_SIZE
+        @path[0] = blk
         @path_index = 0
         return
       end
-      block -= DIRECT_SIZE
+      blk -= DIRECT_SIZE
 
-      if block < @single_indirect_size
+      if blk < @single_indirect_size
         @path[0] = SINGLE_INDIRECT_INDEX
-        @path[1] = block
+        @path[1] = blk
         @path_index = 1
         return
       end
-      block -= @single_indirect_size
+      blk -= @single_indirect_size
 
-      if block < @double_indirect_size
+      if blk < @double_indirect_size
         @path[0] = DOUBLE_INDIRECT_INDEX
-        @path[1], @path[2] = block.divmod(@single_indirect_size)
+        @path[1], @path[2] = blk.divmod(@single_indirect_size)
         @path_index = 2
         return
       end
-      block -= @double_indirect_size
+      blk -= @double_indirect_size
 
-      if block < @triple_indirect_size
+      if blk < @triple_indirect_size
         @path[0] = TRIPLE_INDIRECT_INDEX
-        @path[1], block = block.divmod(@double_indirect_size)
-        @path[2], @path[3] = block.divmod(@single_indirect_size)
+        @path[1], blk = blk.divmod(@double_indirect_size)
+        @path[2], @path[3] = blk.divmod(@single_indirect_size)
         @path_index = 3
         return
       end
@@ -126,5 +126,5 @@ module Ext3
         @triple_indirect_base_size + (single_indirect_index * @double_indirect_size) + (double_indirect_index * @single_indirect_size) + triple_indirect_index
       end
     end
-  end
-end
+  end # class BlockPointersPath
+end # module VirtFS::Ext3

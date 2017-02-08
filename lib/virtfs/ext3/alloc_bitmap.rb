@@ -1,16 +1,16 @@
-module Ext3
+module VirtFS::Ext3
   class AllocBitmap
     def initialize(data)
-      raise "Ext3::AllocBitmap.initialize: Nil data" if data.nil?
+      raise "nil data" if data.nil?
       @data = data
     end
 
-    def isAllocated?(number)
-      getStatus(number)
+    def allocated?(number)
+      get_status(number)
     end
 
     def [](number)
-      getStatus(number)
+      get_status(number)
     end
 
     def dump
@@ -19,7 +19,7 @@ module Ext3
 
     private
 
-    def getStatus(number)
+    def get_status(number)
       byte, mask = index(number)
       @data[byte] & mask == mask
     end
@@ -34,5 +34,5 @@ module Ext3
       mask = 128 >> bit
       return byte, mask
     end
-  end # class
-end # module
+  end # class AllocBitmap
+end # module VirtFS::Ext3
