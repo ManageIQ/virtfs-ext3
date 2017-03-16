@@ -74,7 +74,10 @@ module VirtFS::Ext3
 
       def file_lstat(p)
         de  = get_file(p)
-        obj = lookup_file(p, de)
+        begin
+          obj = lookup_file(p, de)
+        rescue
+        end
         raise Errno::ENOENT, "No such file or directory" if de.nil?
         VirtFS::Stat.new(VirtFS::Ext3::File.new(obj, de, superblock).to_h)
       end

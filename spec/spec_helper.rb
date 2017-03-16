@@ -24,9 +24,7 @@ RSpec.configure do |config|
   end
 
   config.before(:all) do
-puts "!", Dir.pwd
-    native_fs = VirtFS::NativeFS::Thick.new
-    VirtFS.mount(native_fs, "/")
+    VirtFS.mount(VirtFS::NativeFS::Thick.new, "/")
 
     @ext = build(:ext,
                  recording_path: cassette_path,

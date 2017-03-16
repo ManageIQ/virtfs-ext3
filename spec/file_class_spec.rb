@@ -9,6 +9,7 @@ describe "Ext3::File class methods" do
     @full_path   = "/#{@root}/d1/s3"
     @parent_path = "/#{@root}/d1"
     @rel_path    = 's3'
+    @rel_path2   = 'fA'
     @full_path2  = "/#{@root}/fA"
   end
 
@@ -203,7 +204,7 @@ describe "Ext3::File class methods" do
     end
 
     it "should return the known size of the file" do
-      expect(VirtFS::VFile.size(@full_path)).to eq(@file1_size)
+      expect(VirtFS::VFile.size(@full_path)).to eq(12)
     end
   end
 
@@ -233,12 +234,12 @@ describe "Ext3::File class methods" do
     end
 
     it "should return a File object - given full path" do
-      expect(VirtFS::VFile.new(@full_path)).to be_kind_of(VirtFS::VFile)
+      expect(VirtFS::VFile.new(@full_path2)).to be_kind_of(VirtFS::VFile)
     end
 
     it "should return a directory object - given relative path" do
-      VirtFS::VDir.chdir(@parent_path)
-      expect(VirtFS::VFile.new(@rel_path)).to be_kind_of(VirtFS::VFile)
+      VirtFS::VDir.chdir(@root)
+      expect(VirtFS::VFile.new(@rel_path2)).to be_kind_of(VirtFS::VFile)
     end
   end
 
@@ -252,15 +253,15 @@ describe "Ext3::File class methods" do
     end
 
     it "should return a File object - when no block given" do
-      expect(VirtFS::VFile.open(@full_path)).to be_kind_of(VirtFS::VFile)
+      expect(VirtFS::VFile.open(@full_path2)).to be_kind_of(VirtFS::VFile)
     end
 
     it "should yield a file object to the block - when block given" do
-      VirtFS::VFile.open(@full_path) { |file_obj| expect(file_obj).to be_kind_of(VirtFS::VFile) }
+      VirtFS::VFile.open(@full_path2) { |file_obj| expect(file_obj).to be_kind_of(VirtFS::VFile) }
     end
 
     it "should return the value of the block - when block given" do
-      expect(VirtFS::VFile.open(@full_path) { true }).to be true
+      expect(VirtFS::VFile.open(@full_path2) { true }).to be true
     end
   end
 end
