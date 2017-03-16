@@ -1,8 +1,9 @@
 module VirtFS::Ext3
   class File
-    def initialize(dir_entry, superblock)
-      @bs = superblock
-      @de = dir_entry
+    def initialize(file_obj, dir_entry, superblock)
+      @bs       = superblock
+      @de       = dir_entry
+      @file_obj = file_obj
     end
 
     def to_h
@@ -22,5 +23,10 @@ module VirtFS::Ext3
     def close
       @de.close
     end
+
+    def raw_read(start_byte, num_bytes)
+      @file_obj.data.seek(start_byte, IO::SEEK_SET)
+      @file_obj.data.read(num_bytes)
+    end
   end # class File
-end # module VirtFS::Fat32
+end # module VirtFS::Ext3

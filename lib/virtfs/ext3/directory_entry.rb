@@ -76,6 +76,8 @@ module VirtFS::Ext3
 
     alias :size :len
 
+    alias :length :len
+
     def file_type
       return nil unless new?
       @file_type ||= @de['file_type']

@@ -73,9 +73,10 @@ module VirtFS::Ext3
       end
 
       def file_lstat(p)
-        file = get_file(p)
-        raise Errno::ENOENT, "No such file or directory" if file.nil?
-        VirtFS::Stat.new(VirtFS::Ext3::File.new(file, superblock).to_h)
+        de  = get_file(p)
+        obj = lookup_file(p, de)
+        raise Errno::ENOENT, "No such file or directory" if de.nil?
+        VirtFS::Stat.new(VirtFS::Ext3::File.new(obj, de, superblock).to_h)
       end
 
       def file_mtime(p)
@@ -112,7 +113,7 @@ module VirtFS::Ext3
       def file_size(p)
         f = get_file(p)
         raise Errno::ENOENT, "No such file or directory" if f.nil?
-        f.try(:length)
+        f.length
       end
 
       def file_socket?(p)
@@ -152,12 +153,16 @@ module VirtFS::Ext3
       end
 
       def file_new(f, parsed_args, _open_path, _cwd)
-        file = get_file(f)
-        raise Errno::ENOENT, "No such file or directory" if file.nil?
-        File.new(file, superblock)
+        de  = get_file(f)
+        obj = lookup_file(p, de)
+        raise Errno::ENOENT, "No such file or directory" if de.nil?
+        File.new(obj, de, superblock)
       end
 
       private
+        def lookup_file(p, de)
+          FileObject.new(p, de, superblock)
+        end
 
         def get_file(p)
           p = unnormalize_path(p)
