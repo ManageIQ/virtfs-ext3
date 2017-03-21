@@ -1,51 +1,72 @@
-require 'fs/ext3/file_data'
-require 'fs/ext3/directory_entry'
+require_relative 'file_data'
+require_relative 'directory_entry'
 
-module Ext3
+module VirtFS::Ext3
   class Directory
     ROOT_DIRECTORY = 2
 
-    def initialize(sb, inodeNum = ROOT_DIRECTORY)
-      raise "Ext3::Directory.initialize: Nil superblock"   if sb.nil?
-      raise "Ext3::Directory.initialize: Nil inode number" if inodeNum.nil?
-      @sb = sb; @inodeNum = inodeNum
-      @inodeObj = sb.getInode(inodeNum)
-      @data = FileData.new(@inodeObj, @sb).read
+    attr_accessor :fs
+
+    def initialize(fs, sb, inode_num = ROOT_DIRECTORY)
+      raise "nil superblock"   if sb.nil?
+      raise "nil inode number" if inode_num.nil?
+      @fs        = fs
+      @sb        = sb
+      @inode_num = inode_num
+      @inode_obj = sb.get_inode(inode_num)
+      @data      = sb.ext4? ? @inode_obj.read : FileData.new(@inode_obj, @sb).read
     end
 
-    def globNames
-      @ent_names ||= globEntries.keys.compact.sort
+    def close
     end
 
-    def findEntry(name, type = nil)
-      return nil unless globEntries.key?(name)
+    def read(pos)
+      return cache[pos], pos + 1
+    end
 
-      newEnt = @sb.isNewDirEnt?
-      globEntries[name].each do |ent|
-        ent.fileType = @sb.getInode(ent.inode).fileModeToFileType unless newEnt
-        return ent if ent.fileType == type || type.nil?
+    def cache
+      @cache ||= glob_names.collect { |n| glob_entries[n].last }
+    end
+
+    def glob_names
+      @ent_names ||= glob_entries.keys.compact.sort
+    end
+
+    def find_entry(name, type = nil)
+      return nil unless glob_entries.key?(name)
+
+      new_entry = @sb.new_dir_entry?
+      glob_entries[name].each do |ent|
+        ent.file_type = @sb.get_inode(ent.inode).file_mode_file_type unless new_entry
+        return ent if ent.file_type == type || type.nil?
       end
       nil
     end
 
     private
 
-    def globEntries
-      return @ents_by_name unless @ents_by_name.nil?
+    def glob_entries
+      return @entries_by_name unless @entries_by_name.nil?
 
-      @ents_by_name = {}; p = 0
-      return @ents_by_name if @data.nil?
-      newEnt = @sb.isNewDirEnt?
+      @entries_by_name = {}
+      return @entries_by_name if @data.nil?
+
+      p = 0
+      new_entry = @sb.new_dir_entry?
       loop do
         break if p > @data.length - 4
         break if @data[p, 4].nil?
-        de = DirectoryEntry.new(@data[p..-1], newEnt)
-        raise "Ext3::Directory.globEntries: DirectoryEntry length cannot be 0" if de.len == 0
-        @ents_by_name[de.name] ||= []
-        @ents_by_name[de.name] << de
+
+        de = DirectoryEntry.new(fs, @data[p..-1], new_entry)
+        raise "DirectoryEntry length cannot be 0" if de.len == 0
+
+        @entries_by_name[de.name] ||= []
+        @entries_by_name[de.name] << de
+
         p += de.len
       end
-      @ents_by_name
+
+      @entries_by_name
     end
-  end # class
-end # module
+  end # class Directory
+end # module VirtFS::Ext3

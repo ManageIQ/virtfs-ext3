@@ -1,48 +1,42 @@
-require 'fs/ext3/directory_entry'
+require_relative 'directory_entry'
 require 'binary_struct'
 
-module Ext3
-  # ////////////////////////////////////////////////////////////////////////////
-  # // Data definitions.
-
-  INODE = BinaryStruct.new([
-    'S',  'file_mode',    # File mode (type and permission), see PF_ DF_ & FM_ below.
-    'S',  'uid_lo',       # Lower 16-bits of user id.
-    'L',  'size_lo',      # Lower 32-bits of size in bytes.
-    'L',  'atime',        # Last access time.
-    'L',  'ctime',        # Last change time.
-    'L',  'mtime',        # Last modification time.
-    'L',  'dtime',        # Time deleted.
-    'S',  'gid_lo',       # Lower 16-bits of group id.
-    'S',  'link_count',   # Link count.
-    'L',  'sector_count', # Sector count.
-    'L',  'flags',        # Inode flags, see IF_ below.
-    'L',  'unused1',      # Unused.
-    'a48',  'blk_ptrs',   # 12 direct block pointers.
-    'L',  'ind_ptr',      # 1 single indirect block pointer.
-    'L',  'dbl_ind_ptr',  # 1 double indirect block pointer.
-    'L',  'tpl_ind_ptr',  # 1 triple indirect block pointer.
-    'L',  'gen_num',      # Generation number (NFS).
-    'L',  'ext_attrib',   # Extended attribute block (ACL).
-    'L',  'size_hi',      # Upper 32-bits of size in bytes or directory ACL.
-    'L',  'frag_blk',     # Block address of fragment.
-    'C',  'frag_idx',     # Fragment index in block.
-    'C',  'frag_siz',     # Fragment size.
-    'S',  'unused2',      # Unused.
-    'S',  'uid_hi',       # Upper 16-bits of user id.
-    'S',  'gid_hi',       # Upper 16-bits of group id.
-    'L',  'unused3',      # Unused.
-  ])
-
-  # Offset of block pointers for those files whose content is
-  # a symbolic link of less than 60 chars.
-  SYM_LNK_OFFSET  = 40
-  SYM_LNK_SIZE    = 60
-
-  # ////////////////////////////////////////////////////////////////////////////
-  # // Class.
-
+module VirtFS::Ext3
   class Inode
+    STRUCT = BinaryStruct.new([
+      'S',  'file_mode',    # File mode (type and permission), see PF_ DF_ & FM_ below.
+      'S',  'uid_lo',       # Lower 16-bits of user id.
+      'L',  'size_lo',      # Lower 32-bits of size in bytes.
+      'L',  'atime',        # Last access time.
+      'L',  'ctime',        # Last change time.
+      'L',  'mtime',        # Last modification time.
+      'L',  'dtime',        # Time deleted.
+      'S',  'gid_lo',       # Lower 16-bits of group id.
+      'S',  'link_count',   # Link count.
+      'L',  'sector_count', # Sector count.
+      'L',  'flags',        # Inode flags, see IF_ below.
+      'L',  'unused1',      # Unused.
+      'a48',  'blk_ptrs',   # 12 direct block pointers.
+      'L',  'ind_ptr',      # 1 single indirect block pointer.
+      'L',  'dbl_ind_ptr',  # 1 double indirect block pointer.
+      'L',  'tpl_ind_ptr',  # 1 triple indirect block pointer.
+      'L',  'gen_num',      # Generation number (NFS).
+      'L',  'ext_attrib',   # Extended attribute block (ACL).
+      'L',  'size_hi',      # Upper 32-bits of size in bytes or directory ACL.
+      'L',  'frag_blk',     # Block address of fragment.
+      'C',  'frag_idx',     # Fragment index in block.
+      'C',  'frag_siz',     # Fragment size.
+      'S',  'unused2',      # Unused.
+      'S',  'uid_hi',       # Upper 16-bits of user id.
+      'S',  'gid_hi',       # Upper 16-bits of group id.
+      'L',  'unused3',      # Unused.
+    ])
+
+    # Offset of block pointers for those files whose content is
+    # a symbolic link of less than 60 chars.
+    SYM_LNK_OFFSET  = 40
+    SYM_LNK_SIZE    = 60
+
     # Bits 0 to 8 of file mode.
     PF_O_EXECUTE  = 0x0001  # owner execute
     PF_O_WRITE    = 0x0002  # owner write
@@ -90,86 +84,109 @@ module Ext3
     IF_JOURNAL    = 0x00002000  # if using journal, is journal inode
 
     # Lookup table for File Mode to File Type.
-    @@FM2FT = {
-      Inode::FM_FIFO      => DirectoryEntry::FT_FIFO,
-      Inode::FM_CHAR      => DirectoryEntry::FT_CHAR,
-      Inode::FM_DIRECTORY => DirectoryEntry::FT_DIRECTORY,
-      Inode::FM_BLOCK_DEV => DirectoryEntry::FT_BLOCK,
-      Inode::FM_FILE      => DirectoryEntry::FT_FILE,
-      Inode::FM_SYM_LNK   => DirectoryEntry::FT_SYM_LNK,
-      Inode::FM_SOCKET    => DirectoryEntry::FT_SOCKET
+    FM2FT = {
+      Inode::FM_FIFO      => DirectoryEntry::FILE_TYPES[:fifo],
+      Inode::FM_CHAR      => DirectoryEntry::FILE_TYPES[:char],
+      Inode::FM_DIRECTORY => DirectoryEntry::FILE_TYPES[:dir],
+      Inode::FM_BLOCK_DEV => DirectoryEntry::FILE_TYPES[:block],
+      Inode::FM_FILE      => DirectoryEntry::FILE_TYPES[:file],
+      Inode::FM_SYM_LNK   => DirectoryEntry::FILE_TYPES[:sym_link],
+      Inode::FM_SOCKET    => DirectoryEntry::FILE_TYPES[:socket]
     }
 
-    attr_reader :mode, :flags, :blockPointers, :length, :symlnk
-    attr_reader :sngIndBlockPointer, :dblIndBlockPointer, :tplIndBlockPointer
+    attr_reader :symlnk
 
     def initialize(buf)
-      raise "Ext3::Inode.initialize: Nil buffer" if buf.nil?
-      @in = INODE.decode(buf)
-
-      @mode    = @in['file_mode']
-      @flags   = @in['flags']
-      @length  = @in['size_lo']
-      @length += (@in['size_hi'] << 32) unless self.isDir?
-
-      # NOTE: Unpack the direct block pointers separately.
-      @blockPointers      = @in['blk_ptrs'].unpack('L12')
-      @sngIndBlockPointer = @in['ind_ptr']
-      @dblIndBlockPointer = @in['dbl_ind_ptr']
-      @tplIndBlockPointer = @in['tpl_ind_ptr']
+      raise "nil buffer" if buf.nil?
+      @in = STRUCT.decode(buf)
 
       # If this is a symlnk < 60 bytes, grab the link metadata.
-      if self.isSymLink? && length < SYM_LNK_SIZE
-        @symlnk = buf[SYM_LNK_OFFSET, SYM_LNK_SIZE]
-        # rPath is a wildcard. Sometimes they allocate when length < SYM_LNK_SIZE.
-        # Analyze each byte of the first block pointer & see if it makes sense as ASCII.
-        @symlnk[0, 4].each_byte do |c|
-          if !(c > 45 && c < 48) && !((c > 64 && c < 91) || (c > 96 && c < 123))
-            # This seems to be a block pointer, so nix @symlnk & pretend it's a regular file.
-            @symlnk = nil
-            break
-          end
+      process_symlink(buf) if symlink? && length < SYM_LNK_SIZE
+    end
+
+    private
+
+    def process_symlink(buf)
+      @symlnk = buf[SYM_LNK_OFFSET, SYM_LNK_SIZE]
+      # rPath is a wildcard. Sometimes they allocate when length < SYM_LNK_SIZE.
+      # Analyze each byte of the first block pointer & see if it makes sense as ASCII.
+      @symlnk[0, 4].each_byte do |c|
+        if !(c > 45 && c < 48) && !((c > 64 && c < 91) || (c > 96 && c < 123))
+          # This seems to be a block pointer, so nix @symlnk & pretend it's a regular file.
+          @symlnk = nil
+          break
         end
       end
     end
 
-    # ////////////////////////////////////////////////////////////////////////////
-    # // Class helpers & accessors.
+    public
+
+    def mode
+      @mode ||= @in['file_mode']
+    end
+
+    def flags
+      @flags ||= @in['flags']
+    end
+
+    def length
+      @length ||= begin
+        l  =  @in['size_lo']
+        l += (@in['size_hi'] << 32) unless dir?
+        l
+      end
+    end
+
+    def block_pointers
+      @block_pointers ||= @in['blk_ptrs'].unpack('L12')
+    end
+
+    def single_indirect_block_pointer
+      @single_indirect_block_pointer ||= @in['ind_ptr']
+    end
+
+    def double_indirect_block_pointer
+      @double_indirect_block_pointer ||= @in['dbl_ind_ptr']
+    end
+
+    def triple_indirect_block_pointer
+      @triple_indirect_block_pointer ||= @in['tpl_ind_ptr']
+    end
 
     def uid
       (@in['uid_hi'] << 16) | @in['uid_lo']
     end
 
-    def isDir?
+    def dir?
       @mode & FM_DIRECTORY == FM_DIRECTORY
     end
 
-    def isFile?
+    def file?
       @mode & FM_FILE == FM_FILE
     end
 
-    def isDev?
+    def dev?
       @mode & MSK_IS_DEV > 0
     end
 
-    def isSymLink?
+    def symlink?
       @mode & FM_SYM_LNK == FM_SYM_LNK
     end
 
-    def aTime
-      Time.at(@in['atime'])
+    def atime
+      @atime ||= Time.at(@in['atime'])
     end
 
-    def cTime
-      Time.at(@in['ctime'])
+    def ctime
+      @ctime ||= Time.at(@in['ctime'])
     end
 
-    def mTime
-      Time.at(@in['mtime'])
+    def mtime
+      @mtime ||= Time.at(@in['mtime'])
     end
 
-    def dTime
-      Time.at(@in['dtime'])
+    def dtime
+      @dtime ||= Time.at(@in['dtime'])
     end
 
     def gid
@@ -180,49 +197,72 @@ module Ext3
       @in['file_mode'] & (MSK_PERM_OWNER | MSK_PERM_GROUP | MSK_PERM_USER)
     end
 
-    def ownerPermissions
+    def owner_permissions
       @in['file_mode'] & MSK_PERM_OWNER
     end
 
-    def groupPermissions
+    def group_permissions
       @in['file_mode'] & MSK_PERM_GROUP
     end
 
-    def userPermissions
+    def user_permissions
       @in['file_mode'] & MSK_PERM_USER
     end
 
-    # ////////////////////////////////////////////////////////////////////////////
-    # // Utility functions.
-
-    def fileModeToFileType
-      @@FM2FT[@mode & MSK_FILE_MODE]
+    def file_mode_file_type
+      FM2FT[@mode & MSK_FILE_MODE]
     end
 
-    def dump
-      out = "\#<#{self.class}:0x#{'%08x' % object_id}>\n"
-      out += "File mode    : 0x#{'%04x' % @in['file_mode']}\n"
-      out += "UID          : #{uid}\n"
-      out += "Size         : #{length}\n"
-      out += "ATime        : #{aTime}\n"
-      out += "CTime        : #{cTime}\n"
-      out += "MTime        : #{mTime}\n"
-      out += "DTime        : #{dTime}\n"
-      out += "GID          : #{gid}\n"
-      out += "Link count   : #{@in['link_count']}\n"
-      out += "Sector count : #{@in['sector_count']}\n"
-      out += "Flags        : 0x#{'%08x' % @in['flags']}\n"
-      out += "Direct block pointers:\n"
-      12.times { |i| p = @blockPointers[i]; out += "  #{i} = 0x#{'%08x' % p}\n" }
-      out += "Sng Indirect : 0x#{'%08x' % @in['ind_ptr']}\n"
-      out += "Dbl Indirect : 0x#{'%08x' % @in['dbl_ind_ptr']}\n"
-      out += "Tpl Indirect : 0x#{'%08x' % @in['tpl_ind_ptr']}\n"
-      out += "Generation   : 0x#{'%08x' % @in['gen_num']}\n"
-      out += "Ext attrib   : 0x#{'%08x' % @in['ext_attrib']}\n"
-      out += "Frag blk adrs: 0x#{'%08x' % @in['frag_blk']}\n"
-      out += "Frag index   : 0x#{'%02x' % @in['frag_idx']}\n"
-      out += "Frag size    : 0x#{'%02x' % @in['frag_siz']}\n"
-      out
+    def direct_block_string
+      12.times.collect { |i| "  #{i} = 0x#{'%08x' % @block_pointers[i] }\n" }.join
     end
-  end
-end
+
+    def gen_num
+      @gen_num ||= @in['gen_num']
+    end
+
+    def ext_attrib
+      @ext_attrib ||= @in['ext_attrib']
+    end
+
+    def frag_blk
+      @frag_blk ||= @in['frag_blk']
+    end
+
+    def frag_idx
+      @frag_idx ||= @in['frag_idx']
+    end
+
+    def frag_size
+      @frag_size ||= @in['frag_siz']
+    end
+
+    def to_s
+      "\#<#{self.class}:0x#{'%08x' % object_id}>\n"              +
+      "File mode    : 0x#{'%04x' % @in['file_mode']}\n"          +
+      "UID          : #{uid}\n"                                  +
+      "Size         : #{length}\n"                               +
+      "ATime        : #{aTime}\n"                                +
+      "CTime        : #{cTime}\n"                                +
+      "MTime        : #{mTime}\n"                                +
+      "DTime        : #{dTime}\n"                                +
+      "GID          : #{gid}\n"                                  +
+      "Link count   : #{@in['link_count']}\n"                    +
+      "Sector count : #{@in['sector_count']}\n"                  +
+      "Flags        : 0x#{'%08x' % @in['flags']}\n"              +
+      "Direct block pointers:\n"                                 +
+       direct_block_string                                       +
+
+      "Sng Indirect : 0x#{'%08x' % single_indirect_block_ptr}\n" +
+      "Dbl Indirect : 0x#{'%08x' % double_indirect_block_ptr}\n" +
+      "Tpl Indirect : 0x#{'%08x' % triple_indirect_block_ptr}\n" +
+      "Generation   : 0x#{'%08x' % gen_num}\n"                   +
+      "Ext attrib   : 0x#{'%08x' % ext_attrib}\n"                +
+      "Frag blk adrs: 0x#{'%08x' % frag_blk}\n"                  +
+      "Frag index   : 0x#{'%02x' % frag_idx}\n"                  +
+      "Frag size    : 0x#{'%02x' % frag_siz}\n"
+   end
+
+   alias :dump :to_s
+  end # class Inode
+end # module VirtFS::Ext3
