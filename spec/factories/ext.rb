@@ -1,15 +1,10 @@
 require 'ostruct'
 require 'virtfs/block_io'
 require 'virtfs/camcorderfs'
-require 'virt_disk/block_file'
 
 FactoryGirl.define do
   factory :ext, class: OpenStruct do
-    virtual_root ''
-
     recording_path "spec/cassettes/template.yml"
-
-    ###
 
     mount_point '/mnt'
 
@@ -17,14 +12,14 @@ FactoryGirl.define do
 
     glob_dir ['d1/s3', 'd1/sC']
 
-    recording_root { "#{virtual_root}/images" }
+    recording_root { "spec/virtual/" }
 
     recorder {
-      rec = VirtFS::CamcorderFS::FS.new(File.expand_path(recording_path))
-      rec.root = recording_root
-      rec
+      r = VirtFS::CamcorderFS::FS.new(recording_path)
+      r.root = recording_root
+      r
     }
 
-    path { "#{virtual_root}/images/ext3.fs" }
+    path { "#{recording_root}/ext3.fs" }
   end
 end

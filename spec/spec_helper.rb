@@ -12,6 +12,8 @@ require 'fileutils'
 
 require 'virtfs-camcorderfs'
 
+require 'virt_disk'
+
 RSpec.configure do |config|
   config.expect_with :rspec do |c|
     c.syntax = [:should, :expect]
@@ -26,26 +28,28 @@ RSpec.configure do |config|
   config.before(:all) do
     VirtFS.mount(VirtFS::NativeFS::Thick.new, "/")
 
+    @orig_dir = Dir.pwd
     @ext = build(:ext,
-                 recording_path: cassette_path,
-                 #virtual_root: Dir.pwd)
-                  virtual_root: '/home/mmorsi/workspace/cfme/virtfs-ext3')
+                 recording_path: cassette_path)
 
-    VirtFS.mount(@ext.recorder, @ext.recording_root)
+    VirtFS.mount(@ext.recorder, File.expand_path("#{@ext.recording_root}"))
+    VirtFS.activate!
+    VirtFS.dir_chdir(@orig_dir)
 
     @root = @ext.mount_point
-    block_dev = VirtFS::BlockIO.new(VirtDisk::BlockFile.new(@ext.path))
+    block_dev = VirtDisk::Disk.new(VirtDisk::FileIo.new("#{@ext.path}"))
     extfs = VirtFS::Ext3::FS.new(block_dev)
     VirtFS.mount(extfs, @ext.mount_point)
   end
 
   config.after(:each) do
-    VirtFS.dir_chdir('/')
   end
 
   config.after(:all) do
+    VirtFS.deactivate!
     VirtFS.umount(@ext.mount_point)
-    VirtFS.umount(@ext.recording_root)
+    VirtFS.dir_chdir("/")
+    VirtFS.umount(File.expand_path("#{@ext.recording_root}"))
     VirtFS::umount("/")
   end
 end

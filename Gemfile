@@ -10,5 +10,5 @@ group :test do
   gem "simplecov", :require => false
 
   gem 'virtfs-camcorderfs', "~> 0.1.0", :git => "https://github.com/movitto/virtfs-camcorderfs.git", :branch => "fixes"
-  gem 'virt_disk', "~> 0.0.1", :git => "https://github.com/movitto/virt_disk.git", :branch => "initial"
+  gem 'virt_disk', "~> 0.0.1"
 end

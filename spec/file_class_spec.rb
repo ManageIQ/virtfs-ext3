@@ -229,7 +229,7 @@ describe "Ext3::File class methods" do
       expect do
         VirtFS::VFile.new("not_a_file")
       end.to raise_error(
-        Errno::ENOENT, /No such file or directory/
+        RuntimeError, /File not found/
       )
     end
 
@@ -248,7 +248,7 @@ describe "Ext3::File class methods" do
       expect do
         VirtFS::VFile.new("not_a_file")
       end.to raise_error(
-        Errno::ENOENT, /No such file or directory/
+        RuntimeError, /File not found/
       )
     end
 
