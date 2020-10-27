@@ -3,7 +3,7 @@ require 'virtfs/block_io'
 require 'virtfs/camcorderfs'
 require 'virt_disk/block_file'
 
-FactoryGirl.define do
+FactoryBot.define do
   factory :ext, class: OpenStruct do
     virtual_root ''
 
