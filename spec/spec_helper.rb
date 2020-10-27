@@ -5,7 +5,7 @@ $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 require 'virtfs'
 require 'virtfs/ext3'
 require 'virtfs-nativefs-thick'
-require 'factory_girl'
+require 'factory_bot'
 
 # XXX bug in camcorder (missing dependency)
 require 'fileutils'
